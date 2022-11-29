@@ -5,69 +5,133 @@ from selenium.common import exceptions
 import colorama
 from colorama import Fore, Back, Style
 
-url = "https://drujba.compari.ro/active/39-39-p46942144/"
+import sys
+import re
+
+
+"""
+Se va crea un crawler pentru a prelua informatii despre pretul unor produse date ca lista de input. 
+Se va crea un fisier json in care se vor retine urmatoarele informatii: 
+>numele produsului,
+>pretul cel mai bun, 
+>pretul cel mai mare, 
+>numarul de oferte. 
+
+Site-ul ce va fi utilizat ca si suport: https://www.compari.ro.
+
+INPUT: compari.py <urls of products>
+OUTPUT: Un fisier json in care se afla informatiile despre preturile produselor.
+"""
 
 def getDriver():
     try:
         driver = webdriver.Firefox()
-        print(Back.GREEN + "Firefox Driver created")
+        print(Back.BLUE + "Firefox Driver created")
     except exceptions.SessionNotCreatedException:
-        driver = webdriver.Chrome(), print(Back.GREEN + "Chrome Driver created")
+        driver = webdriver.Chrome(), print(Back.BLUE + "Chrome Driver created")
     
     driver.minimize_window()
     return driver    
 
-def printProductInfo(driver, url):
-    if driver is None:
-        driver = getDriver()
-    
+def printProductInfo(url):
+    colorama.init(autoreset=True)
+
+    """
+    Driver Setup
+    """
+    driver = getDriver()
+
     try:
         driver.get(url)
     except Exception as e:
-         print(e)
+        print(Back.RED + f"Could not access url -> {e} ")
+        print(Back.RED + f"url: {url} ")
 
+
+    """
+    Brand Name
+    """
+    productDetails = driver.find_element(By.CLASS_NAME, "product-details")
+    productBrand = productDetails.find_element(By.XPATH, "//*[contains(@itemprop, 'brand')]")
+    print(Back.GREEN + f"Product Brand:", end="")
+    print(f" {productBrand.text}")
+    
+    """
+    Product Name
+    """
+    productName = productDetails.find_elements(By.XPATH, "//span[contains(@itemprop, 'name')]")[1]
+    print(Back.GREEN + f"Product Name:", end="")
+    print(f"{productName.text}")
+
+    """
+    Lowest Price
+    """
     try:
-        offerCount = driver.find_element(By.CLASS_NAME, "offer-count")
-        print(offerCount.text)
+        lowestPriceText = productDetails.find_element(By.XPATH, "//*[contains(@itemprop, 'lowPrice')]")
+        lowestPrice = getNumber(lowestPriceText.text)
+        print(Back.GREEN + f"Lowest Price: ", end="")
+        print(f"{lowestPrice}")
     except Exception as e:
-        print(Back.RED + f"No offer count found -> {e} ")
-    
-    printPrices(driver=driver)
+        print(Back.RED + f"Lowest Price could not be found -> {e} ")
+        
+    """
+    Biggest Price
+    """
+    # try:
+    #     highestPriceText = productDetails.find_elements(By.XPATH, "//*[contains(@itemprop, 'highPrice')]")
+    #     for price in highestPriceText:
+    #         print(price.text)
+    #     highestPrice = float(highestPriceText[1].text)
+    #     print(Back.GREEN + f"Highest Price: ", end="")
+    #     print(f"{highestPrice}")
+    # except Exception as e:
+    #     print(Back.RED + f"Highest Price could not be found -> {e} ")
 
-
-
-def printPrices(driver = None):
-    
-    if driver is None:
-        driver = getDriver()
-
+    """
+    All prices
+    """
     prices = driver.find_elements(By.CLASS_NAME, "row-price")
     print(f"{len(prices)} prices found")
+    highestPrice = 0
     for price in prices:
-        print(price.text)
+        # if(getNumber(price.text) > highestPrice):
+        #     highestPrice = getNumber(price.text)
+        print(price.get_attribute('innerHTML'))
+        print(price.get_attribute('class'))
+
+    print(Back.GREEN + f"Highest Price: ", end="")
+    print(f"{highestPrice}")
+    
+    """
+    Offer Count
+    """
+    try:
+        offerCountText = driver.find_element(By.CLASS_NAME, "offer-count")
+        offerCount = re.findall(r'\d+', offerCountText.text)[0]
+        print(Back.GREEN + f"Found:", end="")
+        print(f" {offerCount} offers ", end="")
+        print(Back.GREEN + f"available")
+    except Exception as e:
+        print(Back.RED + f"No offer count found -> {e} ")
 
     driver.close()
 
 
 
+def getNumber(text):
+    numbers = re.findall(r'\d+', text)
+    return int("".join(numbers))
 
 if __name__ == '__main__':
-    colorama.init(autoreset=True)
-    driver = getDriver()
 
-    printProductInfo(driver, url)
+    urls = []
 
+    with open("urls.txt") as file:
+        for line in file:
+            urls.append(line)
 
-    productDetails = driver.find_element(By.CLASS_NAME, "product-details")
-
-    productBrand = productDetails.find_element(By.XPATH, "//*[contains(@itemprop, 'brand')]")
-    print(productBrand.text)
-
-    try:
-        offerCount = driver.find_element(By.CLASS_NAME, "offer-count")
-        print(offerCount.text)
-    except exceptions.NoSuchElementException:
-        print("No offer count found")
+    for url in urls:
+        printProductInfo(url)
 
         
     # productNames = productDetails.find_element(By.XPATH, "//*[contains(@itemprop, 'name')]")
