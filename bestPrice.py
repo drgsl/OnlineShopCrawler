@@ -8,6 +8,7 @@ from colorama import Fore, Back, Style
 import sys
 import re
 
+import json
 
 """
 Se va crea un crawler pentru a prelua informatii despre pretul unor produse date ca lista de input. 
@@ -25,16 +26,18 @@ OUTPUT: Un fisier json in care se afla informatiile despre preturile produselor.
 
 def getDriver():
     try:
-        driver = webdriver.Firefox()
+        driver = webdriver.Chrome()
         print(Back.BLUE + "Firefox Driver created")
     except exceptions.SessionNotCreatedException:
-        driver = webdriver.Chrome(), print(Back.BLUE + "Chrome Driver created")
+        driver = webdriver.Firefox(), print(Back.BLUE + "Chrome Driver created")
     
     driver.minimize_window()
     return driver    
 
 def printProductInfo(url):
     colorama.init(autoreset=True)
+
+    productDict = dict()
 
     """
     Driver Setup
@@ -56,12 +59,16 @@ def printProductInfo(url):
     print(Back.GREEN + f"Product Brand:", end="")
     print(f" {productBrand.text}")
     
+    productDict["productBrand"] = productBrand.text
+
     """
     Product Name
     """
     productName = productDetails.find_elements(By.XPATH, "//span[contains(@itemprop, 'name')]")[1]
     print(Back.GREEN + f"Product Name:", end="")
     print(f"{productName.text}")
+
+    productDict["productName"] = productName.text
 
     """
     Lowest Price
@@ -74,6 +81,8 @@ def printProductInfo(url):
     except Exception as e:
         print(Back.RED + f"Lowest Price could not be found -> {e} ")
         
+    productDict["lowestPrice"] = lowestPrice
+
     """
     Biggest Price
     """
@@ -93,15 +102,17 @@ def printProductInfo(url):
     prices = driver.find_elements(By.CLASS_NAME, "row-price")
     print(f"{len(prices)} prices found")
     highestPrice = 0
-    for price in prices:
-        # if(getNumber(price.text) > highestPrice):
-        #     highestPrice = getNumber(price.text)
-        print(price.get_attribute('innerHTML'))
-        print(price.get_attribute('class'))
+    for price in prices:g
+        if(getNumber(price.text) > highestPrice):
+            highestPrice = getNumber(price.text)
+        # print(price.get_attribute('innerHTML'))
+        # print(price.get_attribute('class'))
 
     print(Back.GREEN + f"Highest Price: ", end="")
     print(f"{highestPrice}")
     
+    productDict["highestPrice"] = highestPrice
+
     """
     Offer Count
     """
@@ -114,8 +125,10 @@ def printProductInfo(url):
     except Exception as e:
         print(Back.RED + f"No offer count found -> {e} ")
 
-    driver.close()
+    productDict["offerCount"] = offerCount
 
+    driver.close()
+    return productDict
 
 
 def getNumber(text):
@@ -131,7 +144,9 @@ if __name__ == '__main__':
             urls.append(line)
 
     for url in urls:
-        printProductInfo(url)
+        urlDict = printProductInfo(url)
+        urlJson = json.dumps(urlDict)
+        open(f'{urlDict["productBrand"]}_{urlDict["productName"]}.json', 'w').write(urlJson)
 
         
     # productNames = productDetails.find_element(By.XPATH, "//*[contains(@itemprop, 'name')]")
