@@ -1,0 +1,7 @@
+
+class Compari(shopCrawler):
+
+class shopCrawler:
+
+
+shopCrawler should check the url for the shop name before actually searching
